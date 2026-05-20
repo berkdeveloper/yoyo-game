@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AA Style Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #111;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            margin: 0;
+        }
+
+        canvas {
+            background: #181818;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.08);
+            display: block;
+        }
+
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            user-select: none;
+        }
+
+        .info h1 {
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+
+        .info p {
+            color: #bbb;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 1px;
+            text-align: center;
+            width: 100%;
+            color: #999;
+            user-select: none;
+            font-size: 11px;
+            font-weight: bolder;
+        }
+
+        .game-over {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 5;
+        }
+
+        .game-over h2 {
+            font-size: 42px;
+        }
+
+        .game-over button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: black;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .game-over button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="info">
+        <h1>YOY GAME</h1>
+        <p>Kalan iğne: <span id="remaining"></span></p>
+    </div>
+
+    <canvas id="game"></canvas>
+
+    <div class="controls">
+        Mouse tıkla veya SPACE tuşuna bas
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h2 id="gameOverText"></h2>
+        <button onclick="restartGame()">Tekrar Oyna</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        const minSide = Math.min(window.innerWidth, window.innerHeight);
+        console.log(minSide)
+        const gameScale = minSide / 700;
+
+        // ana dairenin büyüklüğü
+        const baseRadius = minSide > 450 ? 90 * gameScale : 100 * gameScale + 20;
+        // Ana daireye eklenen çubukların, daireye olan uzaklıkları
+        const attachGap = 10;
+        // Çubukların, daire üzerindeki uzunluğu
+        const needleLength = minSide > 450 ? 100 * gameScale : 100 * gameScale + 25;
+        // Başlangıçtaki eklenecek top çubukların dairesel büyüklüğü
+        const needleRadius = minSide > 450 ? 8 : 7;
+
+        let rotation = 0;
+        let rotationSpeed = 0.02;
+
+        let attachedNeedles = [];
+        let currentScore = 0;
+        let queueNeedles = 12;
+        let gameEnded = false;
+
+        const remainingText = document.getElementById('remaining');
+        const gameOver = document.getElementById('gameOver');
+        const gameOverText = document.getElementById('gameOverText');
+
+        function getCenter() {
+            return {
+                x: canvas.clientWidth / 2,
+                y: canvas.clientHeight / 2
+            };
+        }
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+
+            const displayWidth = window.innerWidth;
+            const displayHeight = window.innerHeight;
+
+            canvas.style.width = displayWidth + "px";
+            canvas.style.height = displayHeight + "px";
+
+            canvas.width = displayWidth * dpr;
+            canvas.height = displayHeight * dpr;
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // RESET
+            ctx.scale(dpr, dpr);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function updateRemaining() {
+            remainingText.innerText = queueNeedles;
+        }
+
+        updateRemaining();
+
+        function drawCircle() {
+            const { x: cx, y: cy } = getCenter();
+
+            ctx.beginPath();
+            ctx.fillStyle = 'white';
+            ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 30px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(currentScore, cx, cy);
+        }
+
+        function drawNeedle(angle, score) {
+            const { x: centerX, y: centerY } = getCenter();
+
+            const startX = centerX + Math.cos(angle) * (baseRadius + attachGap);
+            const startY = centerY + Math.sin(angle) * (baseRadius + attachGap);
+
+            const x = centerX + Math.cos(angle) * (baseRadius + attachGap + needleLength);
+            const y = centerY + Math.sin(angle) * (baseRadius + attachGap + needleLength);
+
+            ctx.beginPath();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.fillStyle = 'white';
+            ctx.arc(x, y, needleRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(score, x, y);
+        }
+
+        function drawQueuedNeedles() {
+            const { x: cx, y: cy } = getCenter();
+
+            const startY = cy + baseRadius + 100;
+            const spacing = 20;
+
+            for (let i = 0; i < queueNeedles; i++) {
+                const x = cx;
+                const y = startY + (i * spacing);
+                const score = queueNeedles - i;
+
+                // line
+                ctx.beginPath();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, y - 0);
+                ctx.stroke();
+
+                // head
+                ctx.beginPath();
+                ctx.fillStyle = 'white';
+                ctx.arc(x, y - 65, needleRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = 'black';
+                ctx.font = 'bold 11px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(score, x, y - 65);
+            }
+        }
+
+        function drawAttachedNeedles() {
+            attachedNeedles.forEach(n => {
+                drawNeedle(n.angle + rotation, n.score);
+            });
+        }
+
+        function shootNeedle() {
+            if (gameEnded || queueNeedles <= 0) return;
+
+            const targetAngle = Math.PI / 2 - rotation;
+
+            for (let a of attachedNeedles) {
+                let diff = Math.abs(normalizeAngle(targetAngle - a.angle));
+
+                if (diff < 0.22) {
+                    endGame(false);
+                    return;
+                }
+            }
+
+            attachedNeedles.push({
+                angle: targetAngle,
+                score: queueNeedles
+            });
+
+            currentScore += queueNeedles;
+
+            queueNeedles--;
+            updateRemaining();
+
+            if (queueNeedles === 0) {
+                endGame(true);
+            }
+        }
+
+        function normalizeAngle(angle) {
+            while (angle < -Math.PI) angle += Math.PI * 2;
+            while (angle > Math.PI) angle -= Math.PI * 2;
+            return angle;
+        }
+
+        function endGame(win) {
+            gameEnded = true;
+            gameOver.style.display = 'flex';
+            gameOverText.style.userSelect = 'none'
+
+            if (win) {
+                gameOverText.innerText = 'KAZANDIN';
+            } else {
+                gameOverText.innerText = 'KAYBETTİN';
+            }
+        }
+
+        function restartGame() {
+            gameEnded = true; // ❗ önce oyunu kilitle
+
+            attachedNeedles = [];
+            queueNeedles = 12;
+            currentScore = 0;
+            gameEnded = false;
+            rotation = 0;
+
+            rotationSpeed = Math.random() > 0.5 ? 0.02 : -0.02;
+
+            updateRemaining();
+
+            gameOver.style.display = 'none';
+
+            setTimeout(() => {
+                gameEnded = false;
+            }, 50);
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            rotation += rotationSpeed;
+
+            drawCircle();
+            drawAttachedNeedles();
+            drawQueuedNeedles();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            shootNeedle();
+        });
+
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                shootNeedle();
+            }
+        });
+
+        restartGame();
+        gameLoop();
+    </script>
+</body>
+
+</html>
