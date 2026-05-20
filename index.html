@@ -50,17 +50,6 @@
             color: #bbb;
         }
 
-        .controls {
-            position: absolute;
-            bottom: 1px;
-            text-align: center;
-            width: 100%;
-            color: #999;
-            user-select: none;
-            font-size: 11px;
-            font-weight: bolder;
-        }
-
         .game-over {
             position: absolute;
             inset: 0;
@@ -128,10 +117,6 @@
     </div>
 
     <canvas id="game"></canvas>
-
-    <div class="controls">
-        Mouse tıkla veya SPACE tuşuna bas
-    </div>
 
     <div class="game-over" id="gameOver">
         <h2 id="gameOverText"></h2>
@@ -252,7 +237,7 @@
             const { x: cx, y: cy } = getCenter();
 
             const startY = cy + baseRadius + 100;
-            const spacing = 20;
+            const spacing = isMobile ? 17.5 : 25;
 
             for (let i = 0; i < queueNeedles; i++) {
                 const x = cx;
