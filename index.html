@@ -140,7 +140,7 @@
 
         let attachedNeedles = [];
         let currentScore = 0;
-        let queueNeedles = 12;
+        let queueNeedles = isMobile ? 15 : 12;
         let gameEnded = false;
 
         const remainingText = document.getElementById('remaining');
@@ -312,13 +312,13 @@
             gameEnded = true;
 
             attachedNeedles = [];
-            queueNeedles = 12;
+            queueNeedles = isMobile ? 15 : 12;
             currentScore = 0;
             gameEnded = false;
             rotation = 0;
 
             // rotationSpeed = Math.random() > 0.5 ? 0.03 : -0.02;
-            rotationSpeed = isMobile ? 0.05 : 0.02;
+            rotationSpeed = isMobile ? 0.06 : 0.02;
             console.log(rotationSpeed);
 
             updateRemaining();
